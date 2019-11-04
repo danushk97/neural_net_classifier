@@ -13,9 +13,9 @@ def train(data_path, model_file):
                                        y = data_loader.train_y,
                                        units_size = units_size,
                                        threshold = 0.4,
-                                       learning_rate = 0.03)
-    classifier(epoch = 10000)
-    save_model(classifier)
+                                       learning_rate = 0.3)
+    classifier(epoch = 2000)
+    # save_model(classifier)
 
 def save_model(model):
     pkl_representation = pickle.dumps(model)

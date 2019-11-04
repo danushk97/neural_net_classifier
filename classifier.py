@@ -1,7 +1,7 @@
 import numpy as np
-import pandas as pd
 import pickle as pkl
 
+from utils import sigmoid_derivative, relu_derivative
 from losses import cross_entropy
 from algorithms import sigmoid
 
@@ -35,16 +35,16 @@ class neural_net_classifier(object):
 
         if not self.weights:
             self.initialize_parameters()
-        
+        print("length",len(self.parameters) //2)
         self.train(epoch)
     
     def train(self, epoch):
 
         for i in range(epoch):
             print(f'{i}th iteration')
-            activations = self.forward()
-            print(cross_entropy(self.y, activations['aL']))
-            gradients = self.backpropagate(activations)
+            aL, caches = self.forward()
+            print(cross_entropy(self.y, aL))
+            gradients = self.backpropagate(aL, caches, self.y)
             self.optimize(gradients, self.learning_rate)
     
     def initialize_parameters(self):
@@ -54,17 +54,10 @@ class neural_net_classifier(object):
         """
 
         for i in range(1, len(self.units_size)):
-            self.parameters['w' + str(i)] = np.random.randn(self.units_size[i], self.units_size[i - 1]) * 0.01
+            self.parameters['W' + str(i)] = np.random.randn(self.units_size[i], self.units_size[i - 1]) * 0.01
             self.parameters['b' + str(i)] = np.zeros((self.units_size[i], 1))
-
-            if i == len(self.units_size) - 1:
-                self.parameters['wL'] =  self.parameters['w' + str(i)]
-                self.parameters['bL'] = self.parameters['b' + str(i)]
-
-
-            assert (self.parameters['w' + str(i)].shape[0] == self.units_size[i]) 
-            print(f'shape of parameters: { self.parameters["w" + str(i)].shape}')
-    
+            assert (self.parameters['W' + str(i)].shape[0] == self.units_size[i]) 
+            print(f'shape of parameters: { self.parameters["W" + str(i)].shape}')
     
     def forward(self):
         """
@@ -76,60 +69,71 @@ class neural_net_classifier(object):
         Returns:
         dict of activation value of each layer 
         """
+    
+        caches = []
+        A_prev = self.x
+        L = len(self.parameters) // 2  # number of layers in the neural network
 
-        activations = {}
-        activations['a0'] = self.x
+        for i in range(1, L):
+            W = self.parameters['W' + str(i)]
+            b = self.parameters['b' + str(i)]
 
-        for i in range(1, len(self.units_size)):
-            activations['z' + str(i)] = np.dot(self.parameters['w' + str(i)], activations['a' + str(i - 1)]) + self.parameters['b' + str(i)] 
+            z = np.dot(W, A_prev) + b
 
-            if i == len(self.units_size) - 1:
-                print(f'{i} sigmoid')
-                assert(activations['z' + str(i)].shape[0] == 1)
-                activations['a' + str(i)] = sigmoid(activations['z' + str(i)])
-                activations['zL'] = activations['z' + str(i)]
-                activations['aL'] = activations['a' + str(i)]
-            else:
-                assert(activations['z' + str(i)].shape[0] == self.parameters['w' + str(i)].shape[0])
-                activations['a' + str(i)] = np.maximum(0, activations['z' + str(i)])
+            linear_cache = (A_prev, W, b)
+            activation_cache = z
+            caches.append((linear_cache, activation_cache))
 
-        return activations
+            a = np.maximum(0, z)
+            A_prev = a
 
-    def backpropagate(self, activations):
+        W = self.parameters['W' + str(L)]
+        b = self.parameters['b' + str(L)]
+        zL = np.dot(W, A_prev) + b
+
+        linear_cache = (A_prev, W, b)
+        activation_cache = zL
+        caches.append((linear_cache, activation_cache))
+
+        aL = 1 / (1 + np.exp(-zL))
+
+        return aL, caches
+
+    def backpropagate(self, aL, caches, Y):
         """
         calculates the gradient of the existing weights and bias
 
         Parameters:
-        a1 = activations value in layer 1
-        a2 = activations value in layer 2
+        aL = output of final layer
+        caches = contains the values used to calculate the 'a' in each layer
 
         Returns:
         dict of Gradient value of weights and bias in all layer
         """
 
-        gradients = {}
-        dz_cache = {}
+        L = len(caches)
+        m = aL.shape[1]
+        da = - (np.divide(Y, aL) - np.divide(1 - Y, 1 - aL))
+        current_cache = caches[L - 1]
+        linear_cache, activations_cache = current_cache
+        grads = {}
 
-        for i in reversed(range(1, len(self.units_size))):
-
-            if i == len(self.units_size) - 1:
-                print(i, 'final layer')
-                dz_cache['dz' + str(i)] = activations['a' + str(i)] - self.y
-                dz_cache['dzL'] = dz_cache['dz' + str(i)]
-            else:
-                print(i)
-                dz_cache['dz' + str(i)] = np.dot(self.parameters['w' + str(i + 1)].T, dz_cache['dz' + str(i + 1)])
-                # print(dz_cache['dz' + str(i)][activations['z' + str(i)] <= 0])
-                dz_cache['dz' + str(i)][activations['z' + str(i)] <= 0] = 0 
-
-            gradients['dw' + str(i)] = np.dot(dz_cache['dz' + str(i)], activations['a' + str(i -1)].T) / self.no_of_samples
-            gradients['db' + str(i)] = np.sum(dz_cache['dz' + str(i)], axis=1, keepdims=True) / self.no_of_samples
-
-            if i == len(self.units_size) - 1:
-                gradients['dwL'] = gradients['dw' + str(i)]
-                gradients['dbL'] = gradients['db' + str(i)]
+        grads['dz' + str(L)] = sigmoid_derivative(da, activations_cache)
+        grads['dW' + str(L)] = np.dot(grads['dz' + str(L)], linear_cache[0].T) / m
+        grads['db' + str(L)] = np.sum(grads['dz' + str(L)], axis = 1, keepdims=True) / m
+        grads['dA' + str(L - 1)] = np.dot(linear_cache[1].T, grads['dz' + str(L)])
+        da = grads['dA' + str(L - 1)]
     
-        return gradients
+        for l in reversed(range(L - 1)):
+            current_cache = caches[l]
+            linear_cache, activations_cache = current_cache
+            grads['dz' + str(l + 1)] = relu_derivative(da, activations_cache)
+            grads['dW' + str(l + 1)] = np.dot(grads['dz' + str(l + 1)], linear_cache[0].T) / m
+            grads['db' + str(l + 1)] = np.sum(grads['dz' + str(l + 1)], axis = 1, keepdims=True) / m
+            grads['dA' + str(l)] = np.dot(linear_cache[1].T, grads['dz' + str(l + 1)])
+            da = grads['dA' + str(l)]
+
+        return grads
 
     def optimize(self, gradients, learning_rate):
         """
@@ -137,15 +141,15 @@ class neural_net_classifier(object):
 
         Parameters:
         gradients: derivative of weights in each layer
+        learning_rate: decides the pace at which parameters should optimize 
         """
 
-        for i in range(1, len(self.units_size)):
-            self.parameters['w' + str(i)] = self.parameters['w' + str(i)] - (learning_rate * gradients['dw' + str(i)])
-            self.parameters['b' + str(i)] = self.parameters['b' + str(i)] - (learning_rate * gradients['db' + str(i)])
+        L = len(self.parameters) // 2 
+
+        for l in range(L):
+            self.parameters['W' + str(l + 1)] = self.parameters['W' + str(l + 1)] - (learning_rate * gradients['dW' + str(l + 1)])
+            self.parameters['b' + str(l + 1)] = self.parameters['b' + str(l + 1)] - (learning_rate * gradients['db' + str(l + 1)])
         
-            if i == len(self.units_size) - 1:
-                self.parameters['wL'] =  self.parameters['w' + str(i)]
-                self.parameters['bL'] = self.parameters['b' + str(i)]
     
     def save_parameters(self, parameters):
         """

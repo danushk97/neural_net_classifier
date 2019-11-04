@@ -29,9 +29,10 @@ class DataLoader(object):
     def split_data(self, train_range, data):
         
         train_number = round(len(data) * (train_range / 100))
-        print(len(data))
-        print(train_number)
+        # print(len(data))
+        # print(train_number)
         train_data = data[ : train_number]
         valid_data = data[train_number : ]
-
+        print('train data', train_data.shape)
+        print('valid data', valid_data.shape)
         return train_data, valid_data
