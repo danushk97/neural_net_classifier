@@ -3,18 +3,17 @@ import pickle
 from data_loader import load_cat_vs_non_cat_dataset
 from classifier import neural_net_classifier
 
-def train(data_path, model_file):
-    # data_loader = DataLoader(data_path)
+def train(model_file):
     train_x, train_y, test_x, test_y, classes = load_cat_vs_non_cat_dataset()
-
-    # weights = load_weights(model_file) if model_file else None
+    weights = load_weights(model_file) if model_file else None
     units_size = [train_x.shape[0], 7, 1]
     classifier = neural_net_classifier(x = train_x,
                                        y = train_y,
                                        units_size = units_size,
                                        threshold = 0.4,
-                                       learning_rate = 0.06)
-    classifier(epoch = 2500)
+                                       learning_rate = 0.07,
+                                       weights = weights)
+    classifier(epoch = 3500)
     classifier.predict(train_x, train_y)
     classifier.predict(test_x, test_y)
     save_model(classifier)
@@ -35,8 +34,8 @@ def load_weights(path):
 
     if pkl_obj:
         model_obj = pickle.loads(pkl_obj)
-
+    
     return model_obj.parameters
 
 if __name__=='__main__':
-    train(data_path = 'train_data.csv', model_file = 'model')
+    train(model_file = None)

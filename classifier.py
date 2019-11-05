@@ -19,9 +19,8 @@ class neural_net_classifier(object):
         self.y = y
         self.units_size = units_size
         self.no_of_samples = x.shape[1]
-        self.weights = weights
         self.threshold = threshold
-        self.parameters = {}
+        self.parameters = weights
         self.learning_rate = learning_rate
 
     def __call__(self, epoch):
@@ -33,7 +32,8 @@ class neural_net_classifier(object):
         epoch = number of iterations for training
         """
 
-        if not self.weights:
+        if not self.parameters:
+            self.parameters = {}
             self.initialize_parameters()
         print("length",len(self.parameters) //2)
         self.train(epoch)
