@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 
-root_dir = Path('A:\\python_training\\dl\\dogscats')
+root_dir = Path('/home/danushkumar/Downloads/dataset/dog_cats/')
 train_valid_path = ['train', 'valid']
 
 

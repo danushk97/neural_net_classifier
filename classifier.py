@@ -12,7 +12,7 @@ class neural_net_classifier(object):
                  x, 
                  y, 
                  weights = False,
-                 threshold = 0.5,
+                 threshold = 0.4,
                  learning_rate = 0.05 
                  ):
         self.x = x
@@ -40,12 +40,18 @@ class neural_net_classifier(object):
     
     def train(self, epoch):
 
+        self.costs = []
+
         for i in range(epoch):
             print(f'{i}th iteration')
-            aL, caches = self.forward()
-            print(cross_entropy(self.y, aL))
+            aL, caches = self.forward(self.x)
+            cost = cross_entropy(self.y, aL) 
+            print(cost)
             gradients = self.backpropagate(aL, caches, self.y)
             self.optimize(gradients, self.learning_rate)
+
+            if i % 100 == 0:
+                self.costs.append(cost)
     
     def initialize_parameters(self):
         """
@@ -59,7 +65,7 @@ class neural_net_classifier(object):
             assert (self.parameters['W' + str(i)].shape[0] == self.units_size[i]) 
             print(f'shape of parameters: { self.parameters["W" + str(i)].shape}')
     
-    def forward(self):
+    def forward(self, x):
         """
         performs forward propogation
 
@@ -71,7 +77,8 @@ class neural_net_classifier(object):
         """
     
         caches = []
-        A_prev = self.x
+        A_prev = x
+        
         L = len(self.parameters) // 2  # number of layers in the neural network
 
         for i in range(1, L):
@@ -149,18 +156,16 @@ class neural_net_classifier(object):
         for l in range(L):
             self.parameters['W' + str(l + 1)] = self.parameters['W' + str(l + 1)] - (learning_rate * gradients['dW' + str(l + 1)])
             self.parameters['b' + str(l + 1)] = self.parameters['b' + str(l + 1)] - (learning_rate * gradients['db' + str(l + 1)])
-        
+
+    def predict(self, x, y):
+
+        m = x.shape[1]
+        probs, caches = self.forward(x)
     
-    def save_parameters(self, parameters):
-        """
-        saves(serialize) the final parameters of the model, so that 
-        we can reuse(deserialize) it for later prediciton 
+        probs[probs < self.threshold] = 0
+        probs[probs != 0] = 1
 
-        Parameters:
-        weights: final parameters after the n epoch
-        """
+        print(f'accuracy = {np.sum(probs == y) / m }')
 
-        pickle_obj = pkl.dumps(parameters)
-
-        with open('model', 'w') as file:
-            pkl.dump(pickle_obj, file)
+        return probs
+        

@@ -1,3 +1,6 @@
 __pycache__
 Pipfile
 Pipfile.lock
+model
+train_data.csv
+datasets
